@@ -5,6 +5,7 @@ import android.location.Location;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -88,19 +89,29 @@ public class DiscoverFragment extends Fragment implements OnMapReadyCallback {
         eventsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                eventsList.clear();
-                for (DataSnapshot eventSnapshot : snapshot.getChildren()) {
-                    Event event = eventSnapshot.getValue(Event.class);
-                    if (event != null) {
-                        eventsList.add(event);
+                try {
+                    eventsList.clear();
+                    for (DataSnapshot eventSnapshot : snapshot.getChildren()) {
+                        Event event = eventSnapshot.getValue(Event.class);
+                        if (event != null && event.getTitle() != null) {  // Add null checks
+                            // Debug log
+                            Log.d("DiscoverFragment", "Loading event: " + event.getTitle()
+                                    + " | Coordinates: " + event.getLatitude() + "," + event.getLongitude());
+                            eventsList.add(event);
+                        }
                     }
+                    filteredEvents = new ArrayList<>(eventsList);
+                    eventAdapter.updateEvents(filteredEvents);
+                    updateMapMarkers();
+                } catch (Exception e) {
+                    Log.e("DiscoverFragment", "Error loading events: " + e.getMessage());
+                    e.printStackTrace();
                 }
-                // Apply current filters to update both list and map
-                applyFilters();
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("DiscoverFragment", "Database error: " + error.getMessage());
                 Toast.makeText(requireContext(), "Error loading events", Toast.LENGTH_SHORT).show();
             }
         });
@@ -156,6 +167,11 @@ public class DiscoverFragment extends Fragment implements OnMapReadyCallback {
         // Add new markers for filtered events
         for (Event event : filteredEvents) {
             LatLng position = new LatLng(event.getLatitude(), event.getLongitude());
+
+            // Debug log to verify coordinates
+            Log.d("DiscoverFragment", "Adding marker at: " + event.getLatitude() + ", " + event.getLongitude()
+                    + " for event: " + event.getTitle());
+
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(position)
                     .title(event.getTitle())
@@ -163,11 +179,12 @@ public class DiscoverFragment extends Fragment implements OnMapReadyCallback {
 
             com.google.android.gms.maps.model.Marker marker = mMap.addMarker(markerOptions);
             if (marker != null) {
-                marker.setTag(event); // Store the event object with the marker
+                marker.setTag(event);
                 mapMarkers.add(marker);
             }
         }
     }
+
 
     private void setupMapView(Bundle savedInstanceState) {
         // Initialize map
@@ -261,18 +278,7 @@ public class DiscoverFragment extends Fragment implements OnMapReadyCallback {
     private EventAdapter eventAdapter;
 
     private void setupRecyclerView() {
-        eventAdapter = new EventAdapter();
-        binding.eventsRecyclerView.setAdapter(eventAdapter);
-        binding.eventsRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-
-        // Update adapter with user location
-        LocationUtils.getCurrentLocation(requireContext(), location -> {
-            if (location != null) {
-                eventAdapter.setUserLocation(location);
-            }
-        });
-
-        eventAdapter.setOnEventClickListener((event, distance) -> {  // Update to receive distance
+        eventAdapter = new EventAdapter((event, distance) -> {  // Add distance parameter here
             ViewEventFragment viewEventFragment = ViewEventFragment.newInstance(event, distance);
             requireActivity().getSupportFragmentManager()
                     .beginTransaction()
@@ -280,6 +286,9 @@ public class DiscoverFragment extends Fragment implements OnMapReadyCallback {
                     .addToBackStack(null)
                     .commit();
         });
+
+        binding.eventsRecyclerView.setAdapter(eventAdapter);
+        binding.eventsRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
     }
 
     private FilterManager filterManager;

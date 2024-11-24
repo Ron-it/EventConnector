@@ -23,10 +23,20 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     private OnEventClickListener listener;
     private Location userLocation;
 
+
+    public EventAdapter(OnEventClickListener listener) {
+        this.listener = listener;
+    }
+
+    public void setEvents(List<Event> events) {
+        this.events = events;
+        notifyDataSetChanged();
+    }
+
     // Add this method to update user location
     public void setUserLocation(Location location) {
         this.userLocation = location;
-        notifyDataSetChanged(); // Refresh distances
+        notifyDataSetChanged(); // Refresh to update distances
     }
 
     public interface OnEventClickListener {

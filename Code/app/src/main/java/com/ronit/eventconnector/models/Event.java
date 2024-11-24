@@ -17,6 +17,7 @@ public class Event {
     private String creatorId;
     private double cost;
     private String imageUrl;  // Added for future image support
+    private boolean isLocallyCreated = false;
 
     // Required for Firebase
     public Event() {
@@ -80,4 +81,9 @@ public class Event {
     // New getters and setters for imageUrl
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public boolean isLocallyCreated() { return isLocallyCreated; }
+    public void setLocallyCreated(boolean locallyCreated) {
+        this.isLocallyCreated = locallyCreated;
+    }
 }

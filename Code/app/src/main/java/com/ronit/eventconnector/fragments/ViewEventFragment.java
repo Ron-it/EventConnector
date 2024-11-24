@@ -23,14 +23,14 @@ public class ViewEventFragment extends Fragment {
     public static ViewEventFragment newInstance(Event event, double distance) {
         ViewEventFragment fragment = new ViewEventFragment();
         Bundle args = new Bundle();
-        args.putString("eventId", event.getId());
         args.putString("title", event.getTitle());
+        args.putString("description", event.getDescription());
         args.putString("location", event.getLocation());
         args.putLong("dateTime", event.getDateTime());
-        args.putString("description", event.getDescription());
+        args.putString("eventType", event.getEventType());
         args.putDouble("latitude", event.getLatitude());
         args.putDouble("longitude", event.getLongitude());
-        args.putDouble("distance", distance);  // Add this line
+        args.putDouble("distance", distance);
         fragment.setArguments(args);
         return fragment;
     }
@@ -97,7 +97,6 @@ public class ViewEventFragment extends Fragment {
             Toast.makeText(requireContext(), "Opening reviews...", Toast.LENGTH_SHORT).show();
         });
     }
-
 
 
     @Override
