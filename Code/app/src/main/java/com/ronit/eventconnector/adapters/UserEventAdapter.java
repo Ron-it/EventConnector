@@ -5,6 +5,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.ronit.eventconnector.databinding.ItemUserEventBinding;
 import com.ronit.eventconnector.models.Event;
 import java.text.SimpleDateFormat;
@@ -67,13 +73,31 @@ public class UserEventAdapter extends RecyclerView.Adapter<UserEventAdapter.Even
             binding.eventDateTime.setText(dateFormat.format(new Date(event.getDateTime())));
             binding.eventLocation.setText(event.getLocation());
 
-            // Set capacity progress
-            int capacity = event.getCapacity();
-            int attendance = event.getCurrentAttendance();
-            int percentage = capacity > 0 ? (attendance * 100) / capacity : 0;
+            // Listen for real-time attendance updates
+            DatabaseReference eventRef = FirebaseDatabase.getInstance()
+                    .getReference("events")
+                    .child(event.getId());
 
-            binding.capacityProgress.setProgress(percentage);
-            binding.capacityText.setText(String.format("%d/%d Capacity", attendance, capacity));
+            eventRef.child("currentAttendance").addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    Integer currentAttendance = snapshot.getValue(Integer.class);
+                    if (currentAttendance != null) {
+                        // Update the progress and text
+                        int capacity = event.getCapacity();
+                        int percentage = capacity > 0 ? (currentAttendance * 100) / capacity : 0;
+
+                        binding.capacityProgress.setProgress(percentage);
+                        binding.capacityText.setText(String.format("%d/%d Capacity",
+                                currentAttendance, capacity));
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    // Handle error if needed
+                }
+            });
 
             binding.getRoot().setOnClickListener(v -> listener.onEventClick(event));
         }

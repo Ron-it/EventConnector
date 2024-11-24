@@ -27,6 +27,7 @@ public class ProfileFragment extends Fragment {
     private FragmentProfileBinding binding;
     private UserEventAdapter adapter;
     private DatabaseReference eventsRef;
+    private ValueEventListener eventListener;  // Add this field
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -36,6 +37,48 @@ public class ProfileFragment extends Fragment {
         loadMyEvents();
 
         return binding.getRoot();
+    }
+
+    private void loadMyEvents() {
+        eventsRef = FirebaseDatabase.getInstance().getReference("events");
+
+        // Create the listener
+        eventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (binding != null) {  // Add null check for binding
+                    List<Event> myEvents = new ArrayList<>();
+                    for (DataSnapshot eventSnapshot : snapshot.getChildren()) {
+                        Event event = eventSnapshot.getValue(Event.class);
+                        if (event != null) {
+                            myEvents.add(event);
+                        }
+                    }
+                    adapter.updateEvents(myEvents);
+                    updateEmptyView(myEvents.isEmpty());
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                if (binding != null) {  // Add null check for binding
+                    Toast.makeText(requireContext(),
+                            "Error loading events: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+
+        // Attach the listener
+        eventsRef.orderByChild("locallyCreated").equalTo(true)
+                .addValueEventListener(eventListener);
+    }
+
+    private void updateEmptyView(boolean isEmpty) {
+        if (binding != null) {  // Add null check for binding
+            binding.emptyView.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+            binding.userEventsRecyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        }
     }
 
     private void setupRecyclerView() {
@@ -53,39 +96,14 @@ public class ProfileFragment extends Fragment {
         binding.userEventsRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
     }
 
-    private void loadMyEvents() {
-        eventsRef = FirebaseDatabase.getInstance().getReference("events");
-        eventsRef.orderByChild("locallyCreated").equalTo(true)
-                .addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        List<Event> myEvents = new ArrayList<>();
-                        for (DataSnapshot eventSnapshot : snapshot.getChildren()) {
-                            Event event = eventSnapshot.getValue(Event.class);
-                            if (event != null) {
-                                myEvents.add(event);
-                            }
-                        }
-                        adapter.updateEvents(myEvents);
-                        updateEmptyView(myEvents.isEmpty());
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(requireContext(),
-                                "Error loading events: " + error.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-    }
-
-    private void updateEmptyView(boolean isEmpty) {
-        binding.emptyView.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-        binding.userEventsRecyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-    }
-
     @Override
     public void onDestroyView() {
+        // Remove the listener when the fragment is destroyed
+        if (eventsRef != null && eventListener != null) {
+            eventsRef.orderByChild("locallyCreated").equalTo(true)
+                    .removeEventListener(eventListener);
+        }
+
         super.onDestroyView();
         binding = null;
     }

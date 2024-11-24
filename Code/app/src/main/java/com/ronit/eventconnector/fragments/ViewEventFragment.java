@@ -9,6 +9,9 @@ import android.view.ViewGroup;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.ronit.eventconnector.databinding.FragmentViewEventBinding;
 import com.ronit.eventconnector.models.Event;
 import java.text.SimpleDateFormat;
@@ -23,6 +26,7 @@ public class ViewEventFragment extends Fragment {
     public static ViewEventFragment newInstance(Event event, double distance) {
         ViewEventFragment fragment = new ViewEventFragment();
         Bundle args = new Bundle();
+        args.putString("id", event.getId());  // Add this line
         args.putString("title", event.getTitle());
         args.putString("description", event.getDescription());
         args.putString("location", event.getLocation());
@@ -47,12 +51,21 @@ public class ViewEventFragment extends Fragment {
 
     private void loadEventData() {
         if (getArguments() != null) {
-            // Load event data
-            binding.eventTitle.setText(getArguments().getString("title"));
-            binding.eventLocation.setText(getArguments().getString("location"));
-            binding.eventDateTime.setText(dateFormat.format(new Date(getArguments().getLong("dateTime"))));
+            // Initialize the event object
+            event = new Event();
+            event.setId(getArguments().getString("id")); // Add this to newInstance args
+            event.setTitle(getArguments().getString("title"));
+            event.setDescription(getArguments().getString("description"));
+            event.setLocation(getArguments().getString("location"));
+            event.setDateTime(getArguments().getLong("dateTime"));
+            event.setEventType(getArguments().getString("eventType"));
+            event.setLatitude(getArguments().getDouble("latitude"));
+            event.setLongitude(getArguments().getDouble("longitude"));
 
-            // Set distance (you might want to calculate this based on user's location)
+            // Update UI
+            binding.eventTitle.setText(event.getTitle());
+            binding.eventLocation.setText(event.getLocation());
+            binding.eventDateTime.setText(dateFormat.format(new Date(event.getDateTime())));
             binding.eventDistance.setText(String.format("%s km away",
                     getArguments().getDouble("distance", 2.5)));
         }
@@ -63,6 +76,7 @@ public class ViewEventFragment extends Fragment {
                 requireActivity().getSupportFragmentManager().popBackStack());
 
         binding.rsvpButton.setOnClickListener(v -> {
+            incrementAttendance();
             binding.successMessage.setVisibility(View.VISIBLE);
             binding.rsvpButton.setEnabled(false);
         });
@@ -95,6 +109,38 @@ public class ViewEventFragment extends Fragment {
 
         binding.viewReviewsButton.setOnClickListener(v -> {
             Toast.makeText(requireContext(), "Opening reviews...", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void incrementAttendance() {
+        if (event == null || event.getId() == null) {
+            Toast.makeText(requireContext(), "Error: Event data not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        DatabaseReference eventRef = FirebaseDatabase.getInstance()
+                .getReference("events")
+                .child(event.getId());
+
+        // Get the current attendance
+        eventRef.child("currentAttendance").get().addOnSuccessListener(snapshot -> {
+            Integer currentAttendance = snapshot.getValue(Integer.class);
+            if (currentAttendance == null) currentAttendance = 0;
+
+            int newAttendance = currentAttendance + 1;
+
+            // Update the attendance
+            eventRef.child("currentAttendance").setValue(newAttendance)
+                    .addOnSuccessListener(aVoid -> {
+                        // Disable the RSVP button
+                        binding.rsvpButton.setEnabled(false);
+                        binding.rsvpButton.setText("RSVP Confirmed");
+
+                        // Show success message
+                        binding.successMessage.setVisibility(View.VISIBLE);
+                    })
+                    .addOnFailureListener(e ->
+                            Toast.makeText(requireContext(), "Failed to RSVP", Toast.LENGTH_SHORT).show());
         });
     }
 
