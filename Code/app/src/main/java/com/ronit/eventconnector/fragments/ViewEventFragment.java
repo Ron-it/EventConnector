@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment;
 
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.ronit.eventconnector.R;
 import com.ronit.eventconnector.databinding.FragmentViewEventBinding;
 import com.ronit.eventconnector.models.Event;
 import java.text.SimpleDateFormat;
@@ -108,7 +109,12 @@ public class ViewEventFragment extends Fragment {
         });
 
         binding.viewReviewsButton.setOnClickListener(v -> {
-            Toast.makeText(requireContext(), "Opening reviews...", Toast.LENGTH_SHORT).show();
+            ReviewsFragment fragment = ReviewsFragment.newInstance(event.getId());
+            requireActivity().getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, fragment)
+                    .addToBackStack(null)
+                    .commit();
         });
     }
 
